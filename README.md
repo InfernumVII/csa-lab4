@@ -589,4 +589,4 @@ Hello World!
 pytest tests/ -v
 ```
 
-CI: `.github/workflows/ci.yml` — ruff, mypy, pytest.
+CI: `.github/workflows/ci.yml` — ruff, mypy, pytest
