@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+*.bin
+*.log
+*.asm
+*.ast
+my_program.*
