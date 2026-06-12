@@ -1,9 +1,21 @@
 import sys
 
 from src.isa import (
-    DATA_MEM_SIZE, INPUT_DATA_ADDR, MASK16, MASK32, OUTPUT_DATA_ADDR,
-    SIGN32, STACK_START, TWO_WORD_OPCODES, SIGN_EXTEND_32_OPCODES,
-    Opcode, decode_word0, read_binary, sign_extend_32,
+    DATA_MEM_SIZE,
+    INPUT_DATA_ADDR,
+    MASK16,
+    MASK32,
+    OUTPUT_DATA_ADDR,
+    SIGN32,
+    SIGN_EXTEND_32_OPCODES,
+    STACK_START,
+    TWO_WORD_OPCODES,
+    Opcode,
+    decode_word0,
+    disassemble,
+    encode,
+    read_binary,
+    sign_extend_32,
 )
 
 R0, R1, R2, R3, R4, R5, FP, SP = 0, 1, 2, 3, 4, 5, 6, 7
@@ -80,7 +92,7 @@ class Registers:
     def signal_rs2_out(
         self, register: int) -> None: self.outrs2 = self.regs[register]
     def latch_reg(self, data: int,
-                  regNum: int) -> None: self.regs[regNum] = data & MASK32
+                  reg_num: int) -> None: self.regs[reg_num] = data & MASK32
 
 
 class DataMemory:
@@ -438,15 +450,14 @@ class ControlUnit:
                         action = "IRET_POP_PC"
                         next_sc = 4
 
-                elif self.sc == 4:
-                    if opcode == Opcode.IRET:
-                        self.dp.regs.signal_rs1_out(SP)
-                        self.dp.alu.set_a(self.dp.regs.outrs1)
-                        self.dp.alu.signal_inc()
-                        self.dp.regs.latch_reg(self.dp.alu.res, SP)
-                        self.interrupts_enabled, self.in_isr = True, False
-                        action = "IRET_INC_SP2"
-                        next_sc = 0
+                elif self.sc == 4 and opcode == Opcode.IRET:
+                    self.dp.regs.signal_rs1_out(SP)
+                    self.dp.alu.set_a(self.dp.regs.outrs1)
+                    self.dp.alu.signal_inc()
+                    self.dp.regs.latch_reg(self.dp.alu.res, SP)
+                    self.interrupts_enabled, self.in_isr = True, False
+                    action = "IRET_INC_SP2"
+                    next_sc = 0
 
         self.sc, self.ic, self.pc, self.ir, self.tr = next_sc, next_ic, next_pc, next_ir, next_tr
         self.current_action = action
@@ -463,7 +474,7 @@ class Simulator:
         print("\n--- Начало симуляции ---")
         while not self.cu.halted:
             while self.schedule and self.cu.tick_count >= self.schedule[0][0]:
-                tick, char = self.schedule.pop(0)
+                _tick, char = self.schedule.pop(0)
                 self.dp.dmem.mem[INPUT_DATA_ADDR] = 0 if char == "\\0" else ord(
                     char)
                 self.cu.irq_latch = True
@@ -514,15 +525,15 @@ def main() -> None:
         print("Usage: python machine.py <binary_file> [input_schedule_file]")
         sys.exit(1)
 
-    schedule_text = open(
-        sys.argv[2], "r", encoding="utf-8").read() if len(sys.argv) == 3 else ""
+    schedule_text = ""
+    if len(sys.argv) == 3:
+        with open(sys.argv[2], encoding="utf-8") as f:
+            schedule_text = f.read()
     instructions, data_section, entry_point, irq_handler = read_binary(
         sys.argv[1])
 
     dp = Datapath()
     imem = InstructionMemory(4096)
-
-    from src.isa import encode, disassemble
     addr, disasm_map = 0, {}
     for instr in instructions:
         disasm_map[addr] = disassemble(instr, addr).split(" - ")[-1]

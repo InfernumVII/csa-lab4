@@ -4,12 +4,19 @@ from enum import Enum, auto
 from typing import ClassVar
 
 from src.isa import (
+    FP,
     INPUT_DATA_ADDR,
     OUTPUT_DATA_ADDR,
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    SP,
     STACK_START,
     Instruction,
     Opcode,
-    R0, R1, R2, R3, R4, R5, FP, SP,
     write_binary,
     write_debug,
 )
@@ -261,32 +268,47 @@ def dump_ast(node: ASTNode | list[ASTNode], indent: int = 0) -> str:
     if isinstance(node, list):
         return "\n".join(dump_ast(x, indent) for x in node)
     match node:
-        case NumLit(v): return f"{p}NumLit({v})"
-        case StrLit(v): return f'{p}StrLit("{v}")'
-        case ChrLit(v): return f"{p}ChrLit({v!r})"
-        case VarRef(n): return f"{p}VarRef({n})"
-        case ArrAccess(n, i): return f"{p}ArrAccess({n}):\n{dump_ast(i, indent+1)}"
-        case ArrayInit(elems): return f"{p}ArrayInit:\n" + "\n".join(dump_ast(e, indent+1) for e in elems)
-        case BinOp(op, l, r): return f"{p}BinOp({op}):\n{dump_ast(l, indent+1)}\n{dump_ast(r, indent+1)}"
-        case UnaryOp(op, x): return f"{p}UnaryOp({op}):\n{dump_ast(x, indent+1)}"
+        case NumLit(v):
+            return f"{p}NumLit({v})"
+        case StrLit(v):
+            return f'{p}StrLit("{v}")'
+        case ChrLit(v):
+            return f"{p}ChrLit({v!r})"
+        case VarRef(n):
+            return f"{p}VarRef({n})"
+        case ArrAccess(n, i):
+            return f"{p}ArrAccess({n}):\n{dump_ast(i, indent+1)}"
+        case ArrayInit(elems):
+            return f"{p}ArrayInit:\n" + "\n".join(dump_ast(e, indent+1) for e in elems)
+        case BinOp(op, l, r):
+            return f"{p}BinOp({op}):\n{dump_ast(l, indent+1)}\n{dump_ast(r, indent+1)}"
+        case UnaryOp(op, x):
+            return f"{p}UnaryOp({op}):\n{dump_ast(x, indent+1)}"
         case Call(n, args):
             args_str = "\n".join(dump_ast(a, indent+1) for a in args)
             return f"{p}Call({n}):\n{args_str}" if args_str else f"{p}Call({n})"
         case VarDecl(n, i, s):
             arr = f"[{s}]" if s else ""
             return f"{p}VarDecl({n}{arr}):\n{dump_ast(i, indent+1)}"
-        case Assign(t, v): return f"{p}Assign:\n{dump_ast(t, indent+1)}\n{dump_ast(v, indent+1)}"
+        case Assign(t, v):
+            return f"{p}Assign:\n{dump_ast(t, indent+1)}\n{dump_ast(v, indent+1)}"
         case IfStmt(c, t, e):
             res = f"{p}IfStmt:\n{dump_ast(c, indent+1)}\n{p}  then:\n{dump_ast(t, indent+2)}"
             if e:
                 res += f"\n{p}  else:\n{dump_ast(e, indent+2)}"
             return res
-        case WhileStmt(c, b): return f"{p}WhileStmt:\n{dump_ast(c, indent+1)}\n{dump_ast(b, indent+1)}"
-        case FuncDef(n, params, b): return f"{p}FuncDef({n}, {params}):\n{dump_ast(b, indent+1)}"
-        case ReturnStmt(v): return f"{p}ReturnStmt:\n{dump_ast(v, indent+1)}" if v else f"{p}ReturnStmt"
-        case ExprStmt(e): return f"{p}ExprStmt:\n{dump_ast(e, indent+1)}"
-        case IrqDef(n, b): return f"{p}IrqDef({n}):\n{dump_ast(b, indent+1)}"
-        case _: return f"{p}{node!r}"
+        case WhileStmt(c, b):
+            return f"{p}WhileStmt:\n{dump_ast(c, indent+1)}\n{dump_ast(b, indent+1)}"
+        case FuncDef(n, params, b):
+            return f"{p}FuncDef({n}, {params}):\n{dump_ast(b, indent+1)}"
+        case ReturnStmt(v):
+            return f"{p}ReturnStmt:\n{dump_ast(v, indent+1)}" if v else f"{p}ReturnStmt"
+        case ExprStmt(e):
+            return f"{p}ExprStmt:\n{dump_ast(e, indent+1)}"
+        case IrqDef(n, b):
+            return f"{p}IrqDef({n}):\n{dump_ast(b, indent+1)}"
+        case _:
+            return f"{p}{node!r}"
 
 
 class Parser:
@@ -597,7 +619,7 @@ class CodeGen:
                 packed.append(val)
             addr = self._alloc(1 + len(packed))
             self.strings[s] = addr
-            self.str_inits.append((addr, [len(s)] + packed))
+            self.str_inits.append((addr, [len(s), *packed]))
         return self.strings[s]
 
     def _const(self, val: int) -> int:
@@ -630,12 +652,18 @@ class CodeGen:
 
     def _needs_io(self, e: ASTNode) -> bool:
         match e:
-            case Call(n, args): return n in ("getc", "getnum") or any(self._needs_io(a) for a in args)
-            case BinOp(_, l, r): return self._needs_io(l) or self._needs_io(r)
-            case UnaryOp(_, x): return self._needs_io(x)
-            case ArrAccess(_, idx): return self._needs_io(idx)
-            case ArrayInit(elems): return any(self._needs_io(el) for el in elems)
-            case _: return False
+            case Call(n, args):
+                return n in ("getc", "getnum") or any(self._needs_io(a) for a in args)
+            case BinOp(_, l, r):
+                return self._needs_io(l) or self._needs_io(r)
+            case UnaryOp(_, x):
+                return self._needs_io(x)
+            case ArrAccess(_, idx):
+                return self._needs_io(idx)
+            case ArrayInit(elems):
+                return any(self._needs_io(el) for el in elems)
+            case _:
+                return False
 
     def _emit(self, op: Opcode, r1: int = 0, r2: int = 0, imm: int = 0, pairs: tuple = ()) -> None:
         if self.code and self.last_label_addr != self.addr:
@@ -790,16 +818,19 @@ class CodeGen:
 
     def _collect_const_expr(self, e: ASTNode) -> None:
         match e:
-            case NumLit(v) | ChrLit(v): self._const(v)
-            case StrLit(v): self._const(self._str(v))
+            case NumLit(v) | ChrLit(v):
+                self._const(v)
+            case StrLit(v):
+                self._const(self._str(v))
             case BinOp(_, l, r):
                 self._collect_const_expr(l)
                 self._collect_const_expr(r)
-            case UnaryOp(_, op): self._collect_const_expr(op)
+            case UnaryOp(_, op):
+                self._collect_const_expr(op)
             case Call(_, args):
                 for a in args:
                     self._collect_const_expr(a)
-            case ArrAccess(name, idx):
+            case ArrAccess(_name, idx):
                 self._collect_const_expr(idx)
             case ArrayInit(elems):
                 for el in elems:
@@ -822,13 +853,16 @@ class CodeGen:
                                     visit(st)
                     for a in args:
                         visit(a)
-                case ExprStmt(e): visit(e)
-                case BinOp(_, l, r): 
+                case ExprStmt(e):
+                    visit(e)
+                case BinOp(_, l, r):
                     visit(l)
                     visit(r)
-                case UnaryOp(_, o): visit(o)
-                case ArrAccess(_, idx): visit(idx)
-                case Assign(t, v): 
+                case UnaryOp(_, o):
+                    visit(o)
+                case ArrAccess(_, idx):
+                    visit(idx)
+                case Assign(t, v):
                     visit(t)
                     visit(v)
                 case IfStmt(c, t, e):
@@ -839,9 +873,12 @@ class CodeGen:
                 case WhileStmt(c, b):
                     visit(c)
                     [visit(s) for s in b]
-                case ReturnStmt(v): visit(v) if v else None
-                case VarDecl(_, init, _): visit(init) if init else None
-                case IrqDef(_, b): [visit(s) for s in b]
+                case ReturnStmt(v):
+                    visit(v) if v else None
+                case VarDecl(_, init, _):
+                    visit(init) if init else None
+                case IrqDef(_, b):
+                    [visit(s) for s in b]
                 case ArrayInit(elems):
                     for el in elems:
                         visit(el)
@@ -1103,12 +1140,18 @@ class CodeGen:
 
     def _gen_expr(self, e: ASTNode, reg: int) -> None:
         match e:
-            case NumLit(v) | ChrLit(v): self._load_const(reg, v)
-            case StrLit(v): self._load_const(reg, self._str(v))
-            case VarRef(n): self._emit_load_var(n, reg)
-            case BinOp(op, l, r): self._gen_binop(op, l, r, reg)
-            case UnaryOp(op, x): self._gen_unary(op, x, reg)
-            case Call(n, args): self._gen_call(n, args, reg)
+            case NumLit(v) | ChrLit(v):
+                self._load_const(reg, v)
+            case StrLit(v):
+                self._load_const(reg, self._str(v))
+            case VarRef(n):
+                self._emit_load_var(n, reg)
+            case BinOp(op, l, r):
+                self._gen_binop(op, l, r, reg)
+            case UnaryOp(op, x):
+                self._gen_unary(op, x, reg)
+            case Call(n, args):
+                self._gen_call(n, args, reg)
             case ArrAccess(n, idx):
                 self._gen_array_addr(n, idx, reg)
                 self._emit(Opcode.LD_IND, reg, reg)
@@ -1133,15 +1176,14 @@ class CodeGen:
 
         if op == "+":
             terms = self._collect_poly_terms(BinOp(op, left, right))
-            if terms and len(terms) >= 2:
-                if all(self._get_var_loc_safe(c.name) == VarLoc.GLOBAL and
+            if terms and len(terms) >= 2 and all(self._get_var_loc_safe(c.name) == VarLoc.GLOBAL and
                        self._get_var_loc_safe(x.name) == VarLoc.GLOBAL for c, x in terms):
 
-                    self._load_const(reg, 0)
-                    pairs = tuple(
-                        (self._get_var(c.name)[1], self._get_var(x.name)[1]) for c, x in terms)
-                    self._emit(Opcode.POLY, reg, 0, len(pairs), pairs=pairs)
-                    return
+                self._load_const(reg, 0)
+                pairs = tuple(
+                    (self._get_var(c.name)[1], self._get_var(x.name)[1]) for c, x in terms)
+                self._emit(Opcode.POLY, reg, 0, len(pairs), pairs=pairs)
+                return
 
         if isinstance(right, VarRef) and op in self.CISC_MEM:
             loc, val, _ = self._get_var(right.name)
@@ -1208,8 +1250,10 @@ class CodeGen:
             case VarRef(name):
                 loc, val, _ = self._get_var(name)
                 return val if loc == VarLoc.GLOBAL else 0
-            case NumLit(v): return v
-            case _: return 0
+            case NumLit(v):
+                return v
+            case _:
+                return 0
 
     def _gen_call(self, name: str, args: list[ASTNode], reg: int) -> None:
         builtins = {"getc": "__get_char",
@@ -1308,9 +1352,9 @@ class CodeGen:
         self.static_locals.clear()
         self.local_offset = 0
 
-        N = len(f.params)
+        n = len(f.params)
         for i, p in enumerate(f.params):
-            self.locals[p] = (1 + (N - i), 1)
+            self.locals[p] = (1 + (n - i), 1)
 
         self._collect_static_locals(f.body)
 

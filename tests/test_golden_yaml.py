@@ -1,13 +1,26 @@
+import contextlib
+import io
 import os
 import tempfile
-import io
-import contextlib
 from typing import Any
 
 import pytest
 
-from src.isa import write_binary, write_debug, encode, disassemble, MASK32, INPUT_DATA_ADDR
-from src.machine import DataMemory, Datapath, InstructionMemory, ControlUnit, Simulator, parse_schedule
+from src.isa import (
+    INPUT_DATA_ADDR,
+    MASK32,
+    disassemble,
+    encode,
+    write_binary,
+    write_debug,
+)
+from src.machine import (
+    ControlUnit,
+    Datapath,
+    InstructionMemory,
+    Simulator,
+    parse_schedule,
+)
 from src.translator import translate
 
 
@@ -54,7 +67,7 @@ def _run_golden(source: str, input_text: str, max_ticks: int = 5000000, log_limi
         with contextlib.redirect_stdout(io.StringIO()):
             while not cu.halted and cu.tick_count < max_ticks:
                 while sim.schedule and cu.tick_count >= sim.schedule[0][0]:
-                    tick, char = sim.schedule.pop(0)
+                    _tick, char = sim.schedule.pop(0)
                     val = 0 if char == "\\0" else ord(char)
                     dp.dmem.mem[INPUT_DATA_ADDR] = val
                     cu.irq_latch = True

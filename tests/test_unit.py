@@ -4,7 +4,6 @@ import pytest
 
 from src.isa import (
     OUTPUT_DATA_ADDR,
-    TWO_WORD_OPCODES,
     Instruction,
     Opcode,
     decode_word0,
@@ -463,7 +462,7 @@ class TestPoly:
         assert instr.word_count() == 4
         words = encode(instr)
         assert len(words) == 4
-        op, r1, r2, imm = decode_word0(words[0])
+        op, _r1, _r2, imm = decode_word0(words[0])
         assert op == Opcode.POLY
         assert imm == 3
 
@@ -523,7 +522,7 @@ class TestTranslate:
         assert "BinOp(*)" in ast_str
 
     def test_hello_produces_code(self) -> None:
-        code, data, entry, irq, ast_str = translate('print("Hello\\n");')
+        code, _data, entry, irq, ast_str = translate('print("Hello\\n");')
         assert len(code) > 0
         assert entry >= 0
         assert irq >= 0
