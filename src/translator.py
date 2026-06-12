@@ -394,7 +394,7 @@ class Parser:
             arr_size = int(self._eat(TT.NUM).value)
             self._eat(TT.RBRACKET)
 
-        init = NumLit(0)
+        init: ASTNode = NumLit(0)
         if self._is(TT.ASSIGN):
             self._eat(TT.ASSIGN)
             if self._is(TT.LBRACE):
@@ -665,7 +665,7 @@ class CodeGen:
             case _:
                 return False
 
-    def _emit(self, op: Opcode, r1: int = 0, r2: int = 0, imm: int = 0, pairs: tuple = ()) -> None:
+    def _emit(self, op: Opcode, r1: int = 0, r2: int = 0, imm: int = 0, pairs: tuple[tuple[int, int], ...] = ()) -> None:
         if self.code and self.last_label_addr != self.addr:
             prev = self.code[-1]
             if op == Opcode.LD and prev.opcode == Opcode.ST and prev.reg1 == r1 and prev.imm == imm:
@@ -841,7 +841,7 @@ class CodeGen:
         builtins = {"getc": "__get_char",
                     "getnum": "__get_num", "putc": "__put_char"}
 
-        def visit(n: ASTNode):
+        def visit(n: ASTNode) -> None:
             match n:
                 case Call(name, args):
                     fname = builtins.get(name, name)
@@ -867,18 +867,24 @@ class CodeGen:
                     visit(v)
                 case IfStmt(c, t, e):
                     visit(c)
-                    [visit(s) for s in t]
+                    for s in t:
+                        visit(s)
                     if e:
-                        [visit(s) for s in e]
+                        for s in e:
+                            visit(s)
                 case WhileStmt(c, b):
                     visit(c)
-                    [visit(s) for s in b]
+                    for s in b:
+                        visit(s)
                 case ReturnStmt(v):
-                    visit(v) if v else None
+                    if v:
+                        visit(v)
                 case VarDecl(_, init, _):
-                    visit(init) if init else None
+                    if init:
+                        visit(init)
                 case IrqDef(_, b):
-                    [visit(s) for s in b]
+                    for s in b:
+                        visit(s)
                 case ArrayInit(elems):
                     for el in elems:
                         visit(el)

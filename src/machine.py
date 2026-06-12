@@ -22,7 +22,7 @@ R0, R1, R2, R3, R4, R5, FP, SP = 0, 1, 2, 3, 4, 5, 6, 7
 
 
 class ALU:
-    def __init__(self):
+    def __init__(self) -> None:
         self.a = self.b = self.res = 0
         self.out_z = self.out_n = self.out_c = False
         self.z = self.n = self.c = False
@@ -81,7 +81,7 @@ class ALU:
 
 
 class Registers:
-    def __init__(self):
+    def __init__(self) -> None:
         self.regs = [0] * 8
         self.regs[SP] = STACK_START
         self.outrs1 = self.outrs2 = 0
@@ -127,7 +127,7 @@ class InstructionMemory:
 
 
 class Datapath:
-    def __init__(self):
+    def __init__(self) -> None:
         self.alu = ALU()
         self.regs = Registers()
         self.dmem = DataMemory(DATA_MEM_SIZE)
